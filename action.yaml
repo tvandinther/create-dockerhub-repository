@@ -1,0 +1,27 @@
+name: 'Create Docker Hub Repository'
+description: 'Idempotently create an image repository on Docker Hub.'
+inputs:
+  namespace:
+    description: The username of the Docker Hub account.
+    required: true
+  repository:
+    description: The name of the repository to create.
+    required: true
+  private:
+    description: Whether the repository should be private.
+    required: true
+    default: false
+  description:
+    description: The short description of the repository.
+    required: false
+    default: ""
+  full_description_path:
+    description: The path to a text or markdown file containing the full description of the repository.
+    required: false
+    default: ""
+  token:
+    description: The Docker Hub token to use for authentication.
+    required: true
+runs:
+  using: 'node16'
+  main: 'dist/index.js'
