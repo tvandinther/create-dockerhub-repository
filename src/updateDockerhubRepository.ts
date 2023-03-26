@@ -1,7 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
 import core from "@actions/core";
-import { Api } from "./dockerhub.js";
+import { Api } from "./dockerhub";
 
 export async function updateDockerhubRepository(namespace: string, repository: string, description: string, fullDescriptionPath: string, token: string) {
     core.info(`Updating repository ${namespace}/${repository}`);

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { createDockerhubRepository } from "./createDockerhubRepository";
 import { updateDockerhubRepository } from "./updateDockerhubRepository";
 
-async function run() {
+export async function run() {
     const rawInput = {
         namespace: core.getInput("namespace"),
         repository: core.getInput("repository"),

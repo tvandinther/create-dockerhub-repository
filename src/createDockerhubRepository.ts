@@ -1,5 +1,5 @@
 import core from "@actions/core";
-import { Api } from "./dockerhub.js"
+import { Api } from "./dockerhub"
 
 export async function createDockerhubRepository(namespace: string, repository: string, description: string, isPrivate: boolean, token: string) {
     console.log(`Creating repository ${namespace}/${repository}`);
