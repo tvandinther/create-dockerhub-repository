@@ -30,15 +30,19 @@ type ApiResponse = {
 }
 
 export async function Api(method: HttpMethod, path: string, body: JsonSerializable, auth: Auth = null) {
-    const options: RequestOptions = new URL(path, dockerhubApiUri);
-    options.method = method;
-    options.headers = {
+    const uri = new URL(path, dockerhubApiUri);
+    const headers: Record<string, string> = {
         "Content-Type": "application/json",
         "Accept": "application/json"
-    };
-
+    }
     if (auth !== null) {
-        options.headers["Authorization"] = `JWT ${(await Login(auth.username, auth.token))}`;
+        headers["Authorization"] = `JWT ${(await Login(auth.username, auth.token))}`;
+    }
+    const options: RequestOptions = {
+        hostname: uri.hostname,
+        path: uri.pathname,
+        method: method,
+        headers: headers
     }
 
     return new Promise<ApiResponse>((resolve, reject) => {
@@ -70,7 +74,7 @@ export async function Api(method: HttpMethod, path: string, body: JsonSerializab
 export async function Login(username: string, password: string) {
     if (authMap.has(username)) return authMap.get(username);
 
-    const response = await Api("POST", "users/login/", {
+    const response = await Api("POST", "users/login", {
         "username": username,
         "password": password
     });

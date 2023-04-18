@@ -1,10 +1,10 @@
-import core from "@actions/core";
+import * as core from "@actions/core";
 import { Api } from "./dockerhub"
 
 export async function createDockerhubRepository(namespace: string, repository: string, description: string, isPrivate: boolean, token: string) {
-    console.log(`Creating repository ${namespace}/${repository}`);
-    console.log(`Description: ${description}`);
-    console.log(`private: ${isPrivate}`);
+    core.info(`Creating repository ${namespace}/${repository}`);
+    core.info(`Description: ${description}`);
+    core.info(`private: ${isPrivate}`);
     
     const response = await Api("POST", "repositories", {
         namespace: namespace,

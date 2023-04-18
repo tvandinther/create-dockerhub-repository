@@ -1,6 +1,6 @@
 import fs from "fs/promises";
 import path from "path";
-import core from "@actions/core";
+import * as core from "@actions/core";
 import { Api } from "./dockerhub";
 
 export async function updateDockerhubRepository(namespace: string, repository: string, description: string, fullDescriptionPath: string, token: string) {

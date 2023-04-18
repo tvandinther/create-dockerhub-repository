@@ -1,13 +1,15 @@
-import core from "@actions/core";
+import * as core from "@actions/core";
 import { z } from "zod";
+import { fromZodError } from 'zod-validation-error';
 import { createDockerhubRepository } from "./createDockerhubRepository";
 import { updateDockerhubRepository } from "./updateDockerhubRepository";
+import { fileURLToPath } from "url";
 
 export async function run() {
     const rawInput = {
         namespace: core.getInput("namespace"),
         repository: core.getInput("repository"),
-        isPrivate: core.getInput("private"),
+        isPrivate: getBooleanInput("private") ?? false,
         description: core.getInput("description"),
         fullDescriptionPath: core.getInput("full_description_path"),
         token: core.getInput("token"),
@@ -23,8 +25,9 @@ export async function run() {
     });
     
     const result = inputSchema.safeParse(rawInput);
+    console.log(result);
     if (!result.success) {
-        core.setFailed(result.error.message);
+        core.setFailed(fromZodError(result.error));
     } else {
         const input = result.data;
     
@@ -35,13 +38,35 @@ export async function run() {
             await updateDockerhubRepository(input.namespace, input.repository, input.description, input.fullDescriptionPath, input.token);
             core.info("Done");
         } catch (error: unknown) {
-            if (error instanceof Error) {
-                core.setFailed(error.message)
-            } else {
-                core.setFailed(`Unknown error ${error}`);
-            }
+            handleError(error);
         }
     }
 }
 
-run();
+function handleError(error: unknown): never {
+    if (error instanceof Error) {
+        core.setFailed(error.stack ?? error.message)
+    } else {
+        core.setFailed(`Unknown error ${error}`);
+    }
+    // Unreachable due to process.exit(1) in setFailed
+    throw error;
+}
+
+function getBooleanInput(name: string): boolean | undefined {
+    console.log(`Getting boolean input ${name}`);
+
+    try {
+        const input = core.getInput(name);
+        console.log(`Got input ${name}: ${input}`);
+        const x = z.boolean().parse(JSON.parse(input));
+        console.log(`Got boolean input ${name}: ${x}`);
+        return x ?? false;
+    } catch (error: unknown) {
+        handleError(error);
+    }
+}
+
+if (require.main === module) {
+    run();
+}
