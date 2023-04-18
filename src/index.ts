@@ -54,14 +54,9 @@ function handleError(error: unknown): never {
 }
 
 function getBooleanInput(name: string): boolean | undefined {
-    console.log(`Getting boolean input ${name}`);
-
     try {
         const input = core.getInput(name);
-        console.log(`Got input ${name}: ${input}`);
-        const x = z.boolean().parse(JSON.parse(input));
-        console.log(`Got boolean input ${name}: ${x}`);
-        return x ?? false;
+        return z.boolean().parse(JSON.parse(input));
     } catch (error: unknown) {
         handleError(error);
     }
