@@ -21,6 +21,8 @@ type RawTestInputs = {
 }
 
 const mockReadFile = (actualFilename: string, actualContents: string) => jest.fn((fileName: string): Buffer => {
+    console.log("filename: " + fileName)
+    console.log("actualFilename: " + actualFilename)
     if (fileName == actualFilename) return Buffer.from(actualContents);
         else throw new Error("File not found");
 });
