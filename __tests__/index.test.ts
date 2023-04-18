@@ -1,5 +1,6 @@
 import nock from "nock";
 import { run } from "../src/index";
+import path from "path";
 
 const fs = require("fs/promises");
 const https = require("https");
@@ -20,10 +21,16 @@ type RawTestInputs = {
     token: string,
 }
 
-const mockReadFile = (actualFilename: string, actualContents: string) => jest.fn((fileName: string): Buffer => {
-    if (fileName == actualFilename) return Buffer.from(actualContents);
+const mockReadFile = (actualFilename: string, actualContents: string) => {
+    const workspacePath = path.join("github", "workspace");
+    process.env["GITHUB_WORKSPACE"] = workspacePath;
+    const actualFilepath = path.join(workspacePath, actualFilename);
+    
+    return jest.fn((filePath: string): Buffer => {
+        if (filePath == actualFilepath) return Buffer.from(actualContents);
         else throw new Error("File not found");
-});
+    });
+};
 
 const mockGetInput = (actual: RawTestInputs) => jest.fn((key: string): RawTestInputs[keyof RawTestInputs] | undefined => {
     return ({
