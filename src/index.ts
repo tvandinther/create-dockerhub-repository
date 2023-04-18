@@ -3,16 +3,15 @@ import { z } from "zod";
 import { fromZodError } from 'zod-validation-error';
 import { createDockerhubRepository } from "./createDockerhubRepository";
 import { updateDockerhubRepository } from "./updateDockerhubRepository";
-import { fileURLToPath } from "url";
 
 export async function run() {
     const rawInput = {
-        namespace: core.getInput("namespace"),
-        repository: core.getInput("repository"),
+        namespace: core.getInput("namespace", { required: true }),
+        repository: core.getInput("repository", { required: true }),
         isPrivate: getBooleanInput("private") ?? false,
-        description: core.getInput("description"),
-        fullDescriptionPath: core.getInput("full_description_path"),
-        token: core.getInput("token"),
+        description: core.getInput("description") ?? "",
+        fullDescriptionPath: core.getInput("full_description_path") ?? "",
+        token: core.getInput("token", { required: true }),
     }
     
     const inputSchema = z.object({
@@ -33,13 +32,9 @@ export async function run() {
     
         core.setSecret(input.token);
     
-        try {
-            await createDockerhubRepository(input.namespace, input.repository, input.description, input.isPrivate, input.token);    
-            await updateDockerhubRepository(input.namespace, input.repository, input.description, input.fullDescriptionPath, input.token);
-            core.info("Done");
-        } catch (error: unknown) {
-            handleError(error);
-        }
+        await createDockerhubRepository(input.namespace, input.repository, input.description, input.isPrivate, input.token);    
+        await updateDockerhubRepository(input.namespace, input.repository, input.description, input.fullDescriptionPath, input.token);
+        core.info("Done");
     }
 }
 
@@ -56,6 +51,8 @@ function handleError(error: unknown): never {
 function getBooleanInput(name: string): boolean | undefined {
     try {
         const input = core.getInput(name);
+        if (input === "") return undefined;
+
         return z.boolean().parse(JSON.parse(input));
     } catch (error: unknown) {
         handleError(error);
@@ -63,5 +60,9 @@ function getBooleanInput(name: string): boolean | undefined {
 }
 
 if (require.main === module) {
-    run();
+    try {
+        run();
+    } catch (error: unknown) {
+        handleError(error);
+    }
 }
