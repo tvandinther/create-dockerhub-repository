@@ -2,8 +2,7 @@ import nock from "nock";
 import { run } from "../src/index";
 import path from "path";
 
-const fs = require("fs/promises");
-const https = require("https");
+import fs from "fs/promises";
 const core = require("@actions/core");
 
 jest.mock("fs/promises");
@@ -21,14 +20,21 @@ type RawTestInputs = {
     token: string,
 }
 
+type TestData = RawTestInputs & {
+    fullDescriptionContents: string,
+    jwt: string,
+}
+
 const mockReadFile = (actualFilename: string, actualContents: string) => {
     const workspacePath = path.join("github", "workspace");
     process.env["GITHUB_WORKSPACE"] = workspacePath;
     const actualFilepath = path.join(workspacePath, actualFilename);
     
-    return jest.fn((filePath: string): Buffer => {
-        if (filePath == actualFilepath) return Buffer.from(actualContents);
-        else throw new Error("File not found");
+    jest.spyOn(fs, "readFile").mockImplementation((filePath) => {
+        console.log(path);
+        console.log(actualFilename);
+        if (filePath == actualFilepath) return Promise.resolve(Buffer.from(actualContents));
+        else return Promise.reject(new Error("File not found"));
     });
 };
 
@@ -43,8 +49,8 @@ const mockGetInput = (actual: RawTestInputs) => jest.fn((key: string): RawTestIn
     })[key];
 });
 
-test('test 1', async () => {
-    const actual = {
+function createTestData(overrides: Partial<TestData> = {}): TestData {
+    return {
         namespace: "namespace",
         repository: "repository",
         private: false,
@@ -53,9 +59,20 @@ test('test 1', async () => {
         token: "abcd1234",
         fullDescriptionContents: "test",
         jwt: "sdkfmskmfksdmflsdk32323",
-    }
+        ...overrides,
+    };
+}
 
-    fs.readFile = mockReadFile(actual.fullDescriptionPath, actual.fullDescriptionContents);
+afterEach(() => {
+    jest.resetAllMocks();
+    jest.restoreAllMocks();
+    nock.cleanAll();
+});
+
+test('Create new Dockerhub repository w/ description & full description', async () => {
+    const actual = createTestData();
+
+    mockReadFile(actual.fullDescriptionPath, actual.fullDescriptionContents);
     core.getInput = mockGetInput(actual);
     
     const loginRequest = nock("https://hub.docker.com/")
