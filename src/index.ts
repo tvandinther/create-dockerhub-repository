@@ -24,7 +24,6 @@ export async function run() {
     });
     
     const result = inputSchema.safeParse(rawInput);
-    console.log(result);
     if (!result.success) {
         core.setFailed(fromZodError(result.error));
     } else {

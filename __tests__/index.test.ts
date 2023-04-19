@@ -1,15 +1,21 @@
 import nock from "nock";
 import { run } from "../src/index";
 import path from "path";
-
 import fs from "fs/promises";
-const core = require("@actions/core");
+import * as core from "@actions/core";
 
 jest.mock("fs/promises");
-jest.mock("@actions/core");
+jest.mock("@actions/core", () => {
+    const allAutoMocked = jest.createMockFromModule<typeof import("@actions/core")>("@actions/core");
+    const actual = jest.requireActual<typeof import("@actions/core")>("@actions/core");
+
+    return {
+        __esModules: true,
+        ...allAutoMocked,
+        getInput: actual.getInput,
+    }
+});
 jest.mock("https");
-
-
 
 type RawTestInputs = {
     namespace: string,
@@ -38,16 +44,20 @@ const mockReadFile = (actualFilename: string, actualContents: string) => {
     });
 };
 
-const mockGetInput = (actual: RawTestInputs) => jest.fn((key: string): RawTestInputs[keyof RawTestInputs] | undefined => {
-    return ({
-        "namespace": actual.namespace,
-        "repository": actual.repository,
-        "private": JSON.stringify(actual.private),
-        "description": actual.description,
-        "full_description_path": actual.fullDescriptionPath,
-        "token": actual.token,
-    })[key];
-});
+const mockGetInput = (actual: RawTestInputs) => {
+    jest.spyOn(core, "getInput");
+
+    const setInput = (key: string, value: RawTestInputs[keyof RawTestInputs]) => {
+        process.env[`INPUT_${key.replace(/ /g, "_").toUpperCase()}`] = value.toString();
+    };
+
+    setInput("namespace", actual.namespace);
+    setInput("repository", actual.repository);
+    setInput("private", actual.private.toString());
+    setInput("description", actual.description);
+    setInput("full_description_path", actual.fullDescriptionPath);
+    setInput("token", actual.token);
+};
 
 function createTestData(overrides: Partial<TestData> = {}): TestData {
     return {
@@ -63,18 +73,7 @@ function createTestData(overrides: Partial<TestData> = {}): TestData {
     };
 }
 
-afterEach(() => {
-    jest.resetAllMocks();
-    jest.restoreAllMocks();
-    nock.cleanAll();
-});
-
-test('Create new Dockerhub repository w/ description & full description', async () => {
-    const actual = createTestData();
-
-    mockReadFile(actual.fullDescriptionPath, actual.fullDescriptionContents);
-    core.getInput = mockGetInput(actual);
-    
+const setupRequests = (actual: TestData) => {
     const loginRequest = nock("https://hub.docker.com/")
         .post('/v2/users/login', { username: actual.namespace, password: actual.token })
         .reply(200, { token: actual.jwt });
@@ -86,6 +85,30 @@ test('Create new Dockerhub repository w/ description & full description', async 
         .matchHeader("Authorization", `JWT ${actual.jwt}`)
         .patch(`/v2/repositories/${actual.namespace}/${actual.repository}`, { description: actual.description, full_description: actual.fullDescriptionContents })
         .reply(200);
+
+    return { loginRequest, createRequest, updateRequest };
+}
+
+const initialise = (overrides: Partial<TestData> = {}) => {
+    const actual = createTestData(overrides);
+
+    mockReadFile(actual.fullDescriptionPath, actual.fullDescriptionContents);
+    mockGetInput(actual);
+
+    const requests = setupRequests(actual);
+
+    return { actual, requests };
+}
+
+afterEach(() => {
+    jest.resetAllMocks();
+    jest.restoreAllMocks();
+    nock.cleanAll();
+});
+
+test('Create new Dockerhub repository w/ description & full description', async () => {
+    const { actual, requests } = initialise(); 
+    const { loginRequest, createRequest, updateRequest } = requests;
 
     await run();
 
