@@ -66,7 +66,7 @@ function createTestData(overrides: Partial<TestData> = {}): TestData {
         private: false,
         description: "description",
         fullDescriptionPath: "full_description_path",
-        token: "abcd1234",
+        token: "hunter2",
         fullDescriptionContents: "test",
         jwt: "sdkfmskmfksdmflsdk32323",
         ...overrides,
@@ -75,13 +75,20 @@ function createTestData(overrides: Partial<TestData> = {}): TestData {
 
 const setupRequests = (actual: TestData) => {
     const loginRequest = nock("https://hub.docker.com/")
+        .persist()
         .post('/v2/users/login', { username: actual.namespace, password: actual.token })
-        .reply(200, { token: actual.jwt });
+        .reply(200, { token: actual.jwt })
+        .post('/v2/users/login', {})
+        .reply(401);
+    
     const createRequest = nock("https://hub.docker.com/")
+        .persist()
         .matchHeader("Authorization", `JWT ${actual.jwt}`)
         .post('/v2/repositories', { namespace: actual.namespace, name: actual.repository, description: actual.description, is_private: actual.private, registry: "docker" })
         .reply(201);
+    
     const updateRequest = nock("https://hub.docker.com/")
+        .persist()
         .matchHeader("Authorization", `JWT ${actual.jwt}`)
         .patch(`/v2/repositories/${actual.namespace}/${actual.repository}`, { description: actual.description, full_description: actual.fullDescriptionContents })
         .reply(200);
@@ -113,8 +120,24 @@ test('Create new Dockerhub repository w/ description & full description', async 
     await run();
 
     expect(core.setFailed).not.toHaveBeenCalled();
-    expect(core.setSecret).toHaveBeenCalledWith("abcd1234");
+    expect(core.setSecret).toHaveBeenCalledWith(actual.token);
     expect(loginRequest.isDone()).toBe(true);
     expect(createRequest.isDone()).toBe(true);
     expect(updateRequest.isDone()).toBe(true);
+});
+
+test('Create new Dockerhub repository w/ incorrect token', async () => {
+    const overrides = {
+        token: "invalid",
+    }
+    const { actual, requests } = initialise(overrides);
+    const { loginRequest, createRequest, updateRequest } = requests;
+
+    await run();
+
+    expect(core.setFailed).toHaveBeenCalled();
+    expect(core.setSecret).toHaveBeenCalledWith(actual.token);
+    expect(loginRequest.isDone()).toBe(true);
+    expect(createRequest.isDone()).toBe(false);
+    expect(updateRequest.isDone()).toBe(false);
 });
